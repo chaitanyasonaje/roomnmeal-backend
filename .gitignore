@@ -6,3 +6,6 @@ dist/
 uploads/
 coverage/
 .vscode/
+serviceAccountKey.json
+seed_log.txt
+

@@ -138,7 +138,13 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
             .update(body)
             .digest('hex');
 
-        if (signature !== expectedSignature) {
+        if (
+            signature.length !== expectedSignature.length ||
+            !crypto.timingSafeEqual(
+                Buffer.from(signature),
+                Buffer.from(expectedSignature)
+            )
+        ) {
             console.error('Invalid webhook signature');
             res.status(400).json({ success: false });
             return;

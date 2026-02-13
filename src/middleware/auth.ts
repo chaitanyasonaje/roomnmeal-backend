@@ -38,33 +38,23 @@ export const authenticate = async (
                 return;
             }
 
-            // production check: ensure user is verified
-            // if (!req.user.isVerified) {
-            //     res.status(401).json({ success: false, message: 'Not authorized, account not verified' });
-            //     return;
-            // }
+            // In production, require account verification
+            if (process.env.NODE_ENV === 'production' && !req.user.isVerified) {
+                res.status(401).json({ success: false, message: 'Not authorized, account not verified' });
+                return;
+            }
 
-            next();
+            return next();
         } catch (error) {
-            console.error(error);
+            console.error('Auth middleware error:', error);
             res.status(401).json({ success: false, message: 'Not authorized, token failed' });
+            return;
         }
     }
 
     if (!token) {
         res.status(401).json({ success: false, message: 'Not authorized, no token' });
+        return;
     }
 };
 
-export const authorize = (...roles: string[]) => {
-    return (req: AuthRequest, res: Response, next: NextFunction) => {
-        if (!req.user || !roles.includes(req.user.role)) {
-            res.status(403).json({
-                success: false,
-                message: `User role ${req.user?.role} is not authorized to access this route`,
-            });
-            return;
-        }
-        next();
-    };
-};
