@@ -106,6 +106,15 @@ const roomSchema = new Schema<IRoom>({
     },
 }, {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+});
+
+// Virtual for status
+roomSchema.virtual('status').get(function () {
+    if (this.isApproved) return 'approved';
+    if (!this.isActive) return 'rejected';
+    return 'pending';
 });
 
 // Index for faster queries

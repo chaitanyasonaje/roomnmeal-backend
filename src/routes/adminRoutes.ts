@@ -5,6 +5,8 @@ import {
     rejectListing,
     getAdminStats,
     getAllUsers,
+    deleteUser,
+    deleteListing,
 } from '../controllers/adminController';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/roleCheck';
@@ -16,5 +18,7 @@ router.get('/stats', authenticate, authorize('admin'), getAdminStats);
 router.get('/users', authenticate, authorize('admin'), getAllUsers);
 router.put('/approve/:type/:id', authenticate, authorize('admin'), approveListing);
 router.put('/reject/:type/:id', authenticate, authorize('admin'), rejectListing);
+router.delete('/listings/:type/:id', authenticate, authorize('admin'), deleteListing);
+router.delete('/users/:id', authenticate, authorize('admin'), deleteUser);
 
 export default router;

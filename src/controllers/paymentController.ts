@@ -131,7 +131,14 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
         }
 
         const signature = req.headers['x-razorpay-signature'] as string;
-        const body = JSON.stringify(req.body);
+        // SECURITY FIX: Use rawBody for signature verification
+        const body = (req as any).rawBody;
+
+        if (!body) {
+            console.error('Missing raw body for webhook verification');
+            res.status(400).json({ success: false });
+            return;
+        }
 
         const expectedSignature = crypto
             .createHmac('sha256', secret)
@@ -139,6 +146,7 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
             .digest('hex');
 
         if (
+            signature.length !== expectedSignature.length ||
             signature.length !== expectedSignature.length ||
             !crypto.timingSafeEqual(
                 Buffer.from(signature),

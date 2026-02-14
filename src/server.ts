@@ -27,6 +27,7 @@ import expenseRoutes from './routes/expenseRoutes';
 import chatRoutes from './routes/chatRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import reviewRoutes from './routes/reviewRoutes';
+import payoutRoutes from './routes/payoutRoutes';
 import healthRoutes from './routes/healthCheck';
 
 // --- Environment validation ---
@@ -72,7 +73,21 @@ app.use(cors({
     credentials: true,
 }));
 
-app.use(express.json({ limit: '10mb' }));
+// Extend Express Request type to include rawBody
+declare global {
+    namespace Express {
+        interface Request {
+            rawBody?: string;
+        }
+    }
+}
+
+app.use(express.json({
+    limit: '10mb',
+    verify: (req: Request, res: Response, buf: Buffer) => {
+        (req as any).rawBody = buf.toString();
+    }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files
@@ -114,6 +129,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/payouts', payoutRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

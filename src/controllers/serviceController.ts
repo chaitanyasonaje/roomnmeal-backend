@@ -6,7 +6,7 @@ import { AuthRequest } from '../middleware/auth';
 export const getAllServices = async (req: Request, res: Response): Promise<void> => {
     try {
         const { city } = req.query;
-        const filter: any = { isActive: true };
+        const filter: any = { isActive: true, isApproved: true };
 
         if (city) {
             filter['location.city'] = { $regex: city, $options: 'i' };
@@ -109,6 +109,7 @@ export const createService = async (req: AuthRequest, res: Response): Promise<vo
             icon,
             location,
             isActive: true,
+            isApproved: false,
             ownerId: req.user?._id, // Link to owner
             images: images || [],
         });

@@ -15,6 +15,7 @@ export interface IService extends Document {
     isActive: boolean;
     ownerId: mongoose.Schema.Types.ObjectId;
     images: string[];
+    isApproved: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -74,11 +75,24 @@ const serviceSchema = new Schema<IService>({
         type: [String],
         default: [],
     },
+    isApproved: {
+        type: Boolean,
+        default: false,
+    },
 }, {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+});
+
+// Virtual for status
+serviceSchema.virtual('status').get(function () {
+    if (this.isApproved) return 'approved';
+    if (!this.isActive) return 'rejected';
+    return 'pending';
 });
 
 // Index for faster queries
-serviceSchema.index({ 'location.city': 1, isActive: 1 });
+serviceSchema.index({ 'location.city': 1, isApproved: 1, isActive: 1 });
 
 export default mongoose.model<IService>('Service', serviceSchema);

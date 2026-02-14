@@ -51,8 +51,9 @@ export const verifyOtpRules = [
 
 // ========================  BOOKING  ========================
 export const createBookingRules = [
-    body('listingId').notEmpty().isMongoId().withMessage('Valid listing ID is required'),
-    body('listingType').isIn(['room', 'mess']).withMessage('Listing type must be room or mess'),
+    body('bookingType').isIn(['room', 'mess']).withMessage('Booking type must be room or mess'),
+    body('roomId').optional().isMongoId().withMessage('Valid room ID is required'),
+    body('messPlanId').optional().isMongoId().withMessage('Valid mess plan ID is required'),
     body('startDate').isISO8601().withMessage('Valid start date is required'),
 ];
 

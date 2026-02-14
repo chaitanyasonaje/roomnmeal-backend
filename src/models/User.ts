@@ -16,6 +16,12 @@ export interface IUser extends Document {
     profilePicture?: string;
     idProofType?: 'AADHAR' | 'PAN' | 'COLLEGE_ID';
     idProofUrl?: string;
+    bankDetails?: {
+        accountHolderName?: string;
+        accountNumber?: string;
+        ifscCode?: string;
+        upiId?: string;
+    };
 }
 
 const userSchema = new Schema<IUser>({
@@ -63,6 +69,12 @@ const userSchema = new Schema<IUser>({
     },
     idProofUrl: {
         type: String,
+    },
+    bankDetails: {
+        accountHolderName: { type: String, trim: true },
+        accountNumber: { type: String, trim: true },
+        ifscCode: { type: String, trim: true },
+        upiId: { type: String, trim: true },
     },
     createdAt: {
         type: Date,

@@ -146,31 +146,56 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
 
 export const updateProfile = async (req: Request, res: Response): Promise<void> => {
     try {
-        const userId = (req as any).user._id;
-        const { idProofType, name, phone } = req.body;
+        const userId = (req as any).user?._id;
+        if (!userId) {
+            res.status(401).json({ success: false, message: 'Authentication required' });
+            return;
+        }
+        const { idProofType, name, phone, bankDetails } = req.body;
+        console.log(`[DEBUG] UpdateProfile attempt for user: ${userId}`, { name, phone, idProofType, hasBankDetails: !!bankDetails });
 
         let updateData: any = {};
         if (idProofType) updateData.idProofType = idProofType;
         if (name) updateData.name = name;
-        if (phone) updateData.phone = phone;
-
-        // Handle file upload
-        if (req.file) {
-            // For now, storing local path. In production, this would be S3/Cloudinary URL
-            const fileUrl = req.file.path.replace(/\\/g, "/"); // Normalize path sep
-
-            // Check if it's a profile pic or ID proof based on field name or body param
-            if (req.file.fieldname === 'document') {
-                updateData.idProofUrl = fileUrl;
-            } else if (req.file.fieldname === 'profilePicture') {
-                updateData.profilePicture = fileUrl;
+        if (bankDetails) updateData.bankDetails = bankDetails;
+        if (phone) {
+            updateData.phone = phone;
+            // Check if phone already used by another user to prevent 500 error from Mongo index
+            const existingUser = await User.findOne({ phone, _id: { $ne: userId } });
+            if (existingUser) {
+                console.warn(`[WARN] Phone number already taken: ${phone} by user: ${existingUser._id}`);
+                res.status(400).json({
+                    success: false,
+                    message: 'This phone number is already registered with another account',
+                });
+                return;
             }
+        }
+
+        // Handle file upload (handle both req.file and req.files from upload.any())
+        const files = req.file ? [req.file] : (req.files as Express.Multer.File[] || []);
+
+        if (files.length > 0) {
+            files.forEach(file => {
+                const fileUrl = file.path.replace(/\\/g, "/");
+                if (file.fieldname === 'document' || file.fieldname === 'idProof') {
+                    updateData.idProofUrl = fileUrl;
+                } else if (file.fieldname === 'profilePicture' || file.fieldname === 'avatar') {
+                    updateData.profilePicture = fileUrl;
+                }
+            });
         }
 
         const user = await User.findByIdAndUpdate(userId, updateData, {
             new: true,
             runValidators: true,
         });
+
+        if (!user) {
+            console.error(`[ERROR] User not found during update: ${userId}`);
+            res.status(404).json({ success: false, message: 'User not found' });
+            return;
+        }
 
         res.status(200).json({
             success: true,
@@ -190,9 +215,39 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
             },
         });
     } catch (error: any) {
+        console.error('[ERROR] Update Profile Detail:', {
+            message: error.message,
+            name: error.name,
+            code: error.code,
+            errors: error.errors ? Object.keys(error.errors) : undefined,
+            stack: error.stack
+        });
+
+        // Handle Mongoose validation errors specifically as 400
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map((e: any) => e.message);
+            res.status(400).json({
+                success: false,
+                message: messages.join(', '),
+                details: process.env.NODE_ENV === 'development' ? error.errors : undefined
+            });
+            return;
+        }
+
+        // Handle Mongo duplicate key errors (code 11000)
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern || {})[0] || 'field';
+            res.status(400).json({
+                success: false,
+                message: `Duplicate value for ${field}. This account may already exist.`,
+            });
+            return;
+        }
+
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to update profile',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
         });
     }
 };
@@ -459,3 +514,26 @@ export const verifyOtpLogin = async (req: Request, res: Response): Promise<void>
     }
 };
 
+// Delete account
+export const deleteProfile = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const userId = (req as any).user._id;
+
+        const user = await User.findByIdAndDelete(userId);
+
+        if (!user) {
+            res.status(404).json({ success: false, message: 'User not found' });
+            return;
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Account deleted successfully'
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to delete account'
+        });
+    }
+};

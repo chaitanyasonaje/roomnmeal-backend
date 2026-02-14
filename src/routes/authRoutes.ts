@@ -8,7 +8,8 @@ import {
     sendRegisterOtp,
     sendOtp,
     verifyOtpLogin,
-    resetPassword
+    resetPassword,
+    deleteProfile
 } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -29,6 +30,7 @@ router.post('/login', loginRules, validate, login);
 router.get('/profile', authenticate, getProfile);
 router.put('/profile', authenticate, upload.any(), updateProfile);
 router.put('/change-password', authenticate, changePasswordRules, validate, changePassword);
+router.delete('/profile', authenticate, deleteProfile);
 
 // OTP Routes
 router.post('/send-register-otp', sendOtpRules, validate, sendRegisterOtp);
