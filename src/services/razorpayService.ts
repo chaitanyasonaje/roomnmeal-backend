@@ -62,9 +62,30 @@ export const verifyPaymentSignature = (
             .update(text)
             .digest('hex');
 
-        return generatedSignature === signature;
+        // SECURITY FIX: Timing-safe comparison
+        return crypto.timingSafeEqual(
+            Buffer.from(generatedSignature),
+            Buffer.from(signature)
+        );
     } catch (error) {
         return false;
+    }
+};
+
+export const refundPayment = async (paymentId: string, amount?: number) => {
+    if (!razorpay) {
+        throw new Error('Razorpay not initialized');
+    }
+    try {
+        const options: any = {
+            payment_id: paymentId,
+        };
+        if (amount) {
+            options.amount = amount * 100; // Convert to paise
+        }
+        return await razorpay.payments.refund(paymentId, options);
+    } catch (error) {
+        throw error;
     }
 };
 

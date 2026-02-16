@@ -3,6 +3,8 @@ import Booking from '../models/Booking';
 import Room from '../models/Room';
 import MessPlan from '../models/MessPlan';
 import { AuthRequest } from '../middleware/auth';
+import { createOrder } from '../services/razorpayService';
+import { sendPushNotification } from '../services/notificationService';
 
 export const createBooking = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -15,9 +17,12 @@ export const createBooking = async (req: AuthRequest, res: Response): Promise<vo
         let totalAmount = 0;
         const duration = durationInMonths || 1;
 
+        let room: any = null;
+        let messPlan: any = null;
+
         // Calculate amount based on booking type
         if (bookingType === 'room' && roomId) {
-            const room = await Room.findById(roomId);
+            room = await Room.findById(roomId);
             if (!room || !room.isApproved || !room.isActive) {
                 res.status(400).json({
                     success: false,
@@ -26,8 +31,6 @@ export const createBooking = async (req: AuthRequest, res: Response): Promise<vo
                 return;
             }
             // For room: Deposit + 1st Month Rent
-            // Or if they pay for full duration upfront? Usually just 1st month + deposit
-            // Let's stick to 1st month + deposit for the initial payment
             totalAmount = room.price + room.deposit;
 
             // Calculate end date
@@ -35,7 +38,7 @@ export const createBooking = async (req: AuthRequest, res: Response): Promise<vo
             end.setMonth(end.getMonth() + duration);
 
         } else if (bookingType === 'mess' && messPlanId) {
-            const messPlan = await MessPlan.findById(messPlanId);
+            messPlan = await MessPlan.findById(messPlanId);
             if (!messPlan || !messPlan.isApproved || !messPlan.isActive) {
                 res.status(400).json({
                     success: false,
@@ -44,10 +47,6 @@ export const createBooking = async (req: AuthRequest, res: Response): Promise<vo
                 return;
             }
             // For mess: Plan Price * Duration (if paid upfront) or just subscription price
-            // Let's assume mess is paid monthly or weekly as per plan.
-            // If duration is passed, maybe they are booking for X months.
-            // But 'plan' logic in frontend was Weekly/Monthly.
-            // Let's assume standard monthly price for now. 
             totalAmount = messPlan.monthlyPrice;
 
             // Calculate end date (1 month default)
@@ -73,9 +72,36 @@ export const createBooking = async (req: AuthRequest, res: Response): Promise<vo
             status: 'pending',
         });
 
+        // NOTIFICATION: Notify Owner
+        try {
+            let ownerId;
+            let title = 'New Booking Request';
+            if (room) {
+                ownerId = room.ownerId;
+                title = `New Room Booking: ${room.title}`;
+            } else if (messPlan) { // Use messPlan variable
+                ownerId = messPlan.ownerId;
+                title = `New Mess Subscription: ${messPlan.name}`; // Use messPlan.name or appropriate field
+            }
+
+            if (ownerId) {
+                // The User model is not needed here for ownerId check, as ownerId is directly from room/messPlan
+                // If User model was needed for other details, it should be imported at the top.
+
+                await sendPushNotification(
+                    ownerId.toString(),
+                    title,
+                    `You have a new booking request from ${req.user?.name}. Total: ₹${totalAmount}`,
+                    { bookingId: booking._id.toString() } // Ensure booking._id is converted to string
+                );
+            }
+        } catch (postBookingError) {
+            console.error('Notification error:', postBookingError);
+        }
+
         res.status(201).json({
             success: true,
-            message: 'Booking created successfully',
+            message: 'Booking created successfully. Please proceed to payment.', // Updated message
             data: booking,
         });
     } catch (error: any) {

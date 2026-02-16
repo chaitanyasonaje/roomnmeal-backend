@@ -9,7 +9,8 @@ import {
     sendOtp,
     verifyOtpLogin,
     resetPassword,
-    deleteProfile
+    deleteProfile,
+    updatePushToken
 } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -31,6 +32,7 @@ router.get('/profile', authenticate, getProfile);
 router.put('/profile', authenticate, upload.any(), updateProfile);
 router.put('/change-password', authenticate, changePasswordRules, validate, changePassword);
 router.delete('/profile', authenticate, deleteProfile);
+router.post('/push-token', authenticate, updatePushToken);
 
 // OTP Routes
 router.post('/send-register-otp', sendOtpRules, validate, sendRegisterOtp);

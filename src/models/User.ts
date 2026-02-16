@@ -22,6 +22,7 @@ export interface IUser extends Document {
         ifscCode?: string;
         upiId?: string;
     };
+    pushToken?: string;
 }
 
 const userSchema = new Schema<IUser>({
@@ -69,12 +70,19 @@ const userSchema = new Schema<IUser>({
     },
     idProofUrl: {
         type: String,
+        select: false,
     },
     bankDetails: {
-        accountHolderName: { type: String, trim: true },
-        accountNumber: { type: String, trim: true },
-        ifscCode: { type: String, trim: true },
-        upiId: { type: String, trim: true },
+        type: {
+            accountHolderName: { type: String, trim: true },
+            accountNumber: { type: String, trim: true },
+            ifscCode: { type: String, trim: true },
+            upiId: { type: String, trim: true },
+        },
+        select: false,
+    },
+    pushToken: {
+        type: String,
     },
     createdAt: {
         type: Date,

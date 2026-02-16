@@ -3,7 +3,7 @@ import Payment from '../models/Payment';
 import crypto from 'crypto';
 import Booking from '../models/Booking';
 import { AuthRequest } from '../middleware/auth';
-import { createOrder, verifyPaymentSignature } from '../services/razorpayService';
+import { createOrder, verifyPaymentSignature, refundPayment } from '../services/razorpayService';
 
 export const createPaymentOrder = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -191,9 +191,61 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
 };
 
 export const requestRefund = async (req: AuthRequest, res: Response): Promise<void> => {
-    // refund logic implementation using razorpay instance
-    // ...
-    res.status(501).json({ success: false, message: 'Refunds not yet implemented' });
+    try {
+        const { paymentId, reason } = req.body;
+        const userId = req.user?._id;
+
+        const payment = await Payment.findById(paymentId);
+        if (!payment) {
+            res.status(404).json({ success: false, message: 'Payment not found' });
+            return;
+        }
+
+        // Only allow admins or the user who made the payment to request refund?
+        // Usually refunds are admin-initiated or require approval. 
+        // For MVP, let's say only Admin can process a refund directly, OR user requests it and it goes to 'refund_requested' status.
+        // User requesting:
+        if (req.user?.role !== 'admin') {
+            // If user, just mark as requested?
+            // payment.status = 'refund_requested';
+            // payment.refundReason = reason;
+            // await payment.save();
+            // res.status(200).json({ success: true, message: 'Refund requested successfully' });
+            // return;
+
+            // Check if user owns the payment
+            if (payment.userId.toString() !== userId.toString()) {
+                res.status(403).json({ success: false, message: 'Not authorized' });
+                return;
+            }
+        }
+
+        // If Admin, process immediately? Or if we want to allow automatic full refunds for testing.
+        // Let's implement immediate refund for Admin for now.
+
+        if (req.user?.role !== 'admin') {
+            res.status(403).json({ success: false, message: 'Only admins can process refunds currently' });
+            return;
+        }
+
+        if (!payment.razorpayPaymentId) {
+            res.status(400).json({ success: false, message: 'Payment ID not found for this transaction' });
+            return;
+        }
+
+        const refund = await refundPayment(payment.razorpayPaymentId);
+
+        payment.status = 'refunded';
+        await payment.save();
+
+        // Update booking status
+        await Booking.findByIdAndUpdate(payment.bookingId, { status: 'cancelled' });
+
+        res.status(200).json({ success: true, message: 'Refund processed successfully', data: refund });
+
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message || 'Refund failed' });
+    }
 };
 
 export const getPaymentDetails = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -206,6 +258,15 @@ export const getPaymentDetails = async (req: AuthRequest, res: Response): Promis
             res.status(404).json({
                 success: false,
                 message: 'Payment not found',
+            });
+            return;
+        }
+
+        // SECURITY FIX: IDOR Prevention
+        if (payment.userId._id.toString() !== req.user?._id.toString() && req.user?.role !== 'admin') {
+            res.status(403).json({
+                success: false,
+                message: 'Not authorized to view this payment record',
             });
             return;
         }

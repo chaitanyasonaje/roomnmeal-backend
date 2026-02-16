@@ -1,13 +1,16 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import User from '../models/User';
 import OTP from '../models/OTP';
+import { AuthRequest } from '../middleware/auth';
+import { sendEmail } from '../services/emailService';
 
 // ==================== OTP System ====================
 
 const RATELIMIT_WINDOW = 60 * 1000; // 1 minute
 
 const generateOtp = (): string => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return crypto.randomInt(100000, 999999).toString();
 };
 
 export const register = async (req: Request, res: Response): Promise<void> => {
@@ -385,7 +388,23 @@ export const sendRegisterOtp = async (req: Request, res: Response): Promise<void
         });
 
         // In production, integrate SMS/Email provider here
-        // console.log(`\n📱 Registration OTP for ${target}: ${otp}\n`); // REMOVED FOR PRODUCTION SAFETY
+        // console.log(`\n📱 Registration OTP for ${target}: ${otp}\n`); // REMOVED FOR PRODUCTION
+
+        if (email) {
+            try {
+                await sendEmail({
+                    email: email,
+                    subject: 'Verify Your Email - RoomNMeal',
+                    message: `Your verification OTP is: ${otp}`,
+                    html: `<p>Your verification OTP is: <b>${otp}</b></p>`
+                });
+            } catch (emailError) {
+                console.error('Failed to send email:', emailError);
+                // Fail gracefully or strict? Strict for registration verification.
+                res.status(500).json({ success: false, message: 'Failed to send verification email' });
+                return;
+            }
+        }
 
         res.status(200).json({
             success: true,
@@ -442,6 +461,19 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
 
         // In production, send via SMS/Email service
         // console.log(`\n🔐 OTP for ${emailOrPhone}: ${otp}\n`); // REMOVED FOR PRODUCTION
+
+        try {
+            await sendEmail({
+                email: emailOrPhone,
+                subject: 'Your Login OTP - RoomNMeal',
+                message: `Your OTP for login is: ${otp}. It is valid for 5 minutes.`,
+                html: `<p>Your OTP for login is: <b>${otp}</b>. It is valid for 5 minutes.</p>`
+            });
+        } catch (emailError) {
+            console.error('Failed to send email:', emailError);
+            res.status(500).json({ success: false, message: 'Failed to send OTP via email' });
+            return;
+        }
 
         res.status(200).json({
             success: true,
@@ -535,5 +567,23 @@ export const deleteProfile = async (req: Request, res: Response): Promise<void> 
             success: false,
             message: error.message || 'Failed to delete account'
         });
+    }
+};
+
+export const updatePushToken = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?._id;
+        const { pushToken } = req.body;
+
+        if (!pushToken) {
+            res.status(400).json({ success: false, message: 'Push token is required' });
+            return;
+        }
+
+        await User.findByIdAndUpdate(userId, { pushToken });
+
+        res.status(200).json({ success: true, message: 'Push token updated' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message || 'Failed to update push token' });
     }
 };

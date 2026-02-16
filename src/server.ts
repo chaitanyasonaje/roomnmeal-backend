@@ -11,6 +11,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { connectDatabase } from './config/database';
 import logger from './config/logger';
+import { initSocket } from './socket';
 
 // Import routes
 import authRoutes from './routes/authRoutes';
@@ -163,6 +164,12 @@ const startServer = async () => {
 
         const server = app.listen(PORT, () => {
             logger.info(`Server running in ${NODE_ENV} mode on port ${PORT}`);
+        });
+
+        // Initialize Socket.io
+        const io = initSocket(server);
+        io.on('connection', () => {
+            // console.log('Client connected');
         });
 
         // Graceful shutdown

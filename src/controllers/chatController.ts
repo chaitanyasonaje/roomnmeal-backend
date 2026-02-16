@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Message from '../models/Message';
 import { AuthRequest } from '../middleware/auth';
+import { getIO } from '../socket';
 
 export const getMessages = async (req: AuthRequest, res: Response) => {
     try {
@@ -30,6 +31,15 @@ export const saveMessage = async (req: AuthRequest, res: Response) => {
             receiver: receiverId,
             text,
         });
+
+        // EMIT SOCKET EVENT
+        try {
+            const io = getIO();
+            io.to(receiverId).emit('new_message', newMessage);
+            io.to(myId?.toString() || '').emit('new_message', newMessage); // Also emit to self for multi-device sync
+        } catch (err) {
+            console.error('Socket emit failed:', err);
+        }
 
         res.status(201).json({ success: true, data: newMessage });
     } catch (error) {
