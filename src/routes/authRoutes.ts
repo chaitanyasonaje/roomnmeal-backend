@@ -21,6 +21,7 @@ import {
     changePasswordRules,
     resetPasswordRules,
     sendOtpRules,
+    sendRegisterOtpRules,
     verifyOtpRules,
 } from '../middleware/validators';
 
@@ -35,7 +36,7 @@ router.delete('/profile', authenticate, deleteProfile);
 router.post('/push-token', authenticate, updatePushToken);
 
 // OTP Routes
-router.post('/send-register-otp', sendOtpRules, validate, sendRegisterOtp);
+router.post('/send-register-otp', sendRegisterOtpRules, validate, sendRegisterOtp);
 router.post('/send-otp', sendOtpRules, validate, sendOtp);
 router.post('/verify-otp-login', verifyOtpRules, validate, verifyOtpLogin);
 router.post('/reset-password', resetPasswordRules, validate, resetPassword);

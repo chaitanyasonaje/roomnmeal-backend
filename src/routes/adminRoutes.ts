@@ -7,6 +7,8 @@ import {
     getAllUsers,
     deleteUser,
     deleteListing,
+    getAllPayments,
+    getAllBookings,
 } from '../controllers/adminController';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/roleCheck';
@@ -20,5 +22,7 @@ router.put('/approve/:type/:id', authenticate, authorize('admin'), approveListin
 router.put('/reject/:type/:id', authenticate, authorize('admin'), rejectListing);
 router.delete('/listings/:type/:id', authenticate, authorize('admin'), deleteListing);
 router.delete('/users/:id', authenticate, authorize('admin'), deleteUser);
+router.get('/payments', authenticate, authorize('admin'), getAllPayments);
+router.get('/bookings', authenticate, authorize('admin'), getAllBookings);
 
 export default router;

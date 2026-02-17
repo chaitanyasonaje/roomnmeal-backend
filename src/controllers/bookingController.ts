@@ -152,15 +152,20 @@ export const getOwnerBookings = async (req: AuthRequest, res: Response): Promise
             .populate('paymentId')
             .sort({ createdAt: -1 });
 
-        // Calculate total earnings
-        const totalEarnings = bookings
+        // Calculate total earnings with 5% deduction
+        const grossEarnings = bookings
             .filter((booking) => booking.status === 'confirmed')
             .reduce((sum, booking) => sum + booking.totalAmount, 0);
+
+        const platformFee = grossEarnings * 0.05;
+        const totalEarnings = grossEarnings - platformFee;
 
         res.status(200).json({
             success: true,
             count: bookings.length,
             totalEarnings,
+            grossEarnings,
+            platformFee,
             data: bookings,
         });
     } catch (error: any) {

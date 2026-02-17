@@ -4,6 +4,7 @@ import User from '../models/User';
 import OTP from '../models/OTP';
 import { AuthRequest } from '../middleware/auth';
 import { sendEmail } from '../services/emailService';
+import { welcomeTemplate, loginOtpTemplate } from '../utils/emailTemplates';
 
 // ==================== OTP System ====================
 
@@ -15,7 +16,15 @@ const generateOtp = (): string => {
 
 export const register = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { name, email, phone, password, role } = req.body;
+        const { name, email, phone, password, role, otp } = req.body;
+
+        if (!otp) {
+            res.status(400).json({
+                success: false,
+                message: 'OTP is required for registration',
+            });
+            return;
+        }
 
         // Check if user already exists
         const existingUser = await User.findOne({
@@ -30,10 +39,41 @@ export const register = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        // Create new user
+        // Verify OTP (use email or phone as identifier)
+        const identifier = email || phone;
+        const otpRecord = await OTP.findOne({ identifier });
+
+        if (!otpRecord) {
+            res.status(400).json({
+                success: false,
+                message: 'OTP not found or expired. Please request a new one.',
+            });
+            return;
+        }
+
+        if (otpRecord.otp !== otp) {
+            res.status(400).json({
+                success: false,
+                message: 'Invalid OTP',
+            });
+            return;
+        }
+
+        // Check expiry (extra safety check)
+        if (Date.now() > otpRecord.expiresAt.getTime()) {
+            await OTP.deleteOne({ _id: otpRecord._id });
+            res.status(400).json({
+                success: false,
+                message: 'OTP has expired. Please request a new one.',
+            });
+            return;
+        }
+
+        // OTP verified - proceed with registration
+        await OTP.deleteOne({ _id: otpRecord._id });
+
         // SECURITY FIX: Prevent privilege escalation. 
         // Only allow 'student' and 'owner' roles during public registration.
-        // Force 'admin' requests to 'student'.
         const safeRole = (role === 'owner') ? 'owner' : 'student';
 
         const user = await User.create({
@@ -351,7 +391,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 export const sendRegisterOtp = async (req: Request, res: Response): Promise<void> => {
     try {
         const { phone, email } = req.body;
-        const target = phone || email;
+        const target = email || phone;
 
         if (!target) {
             res.status(400).json({ success: false, message: 'Please provide phone number or email' });
@@ -396,7 +436,7 @@ export const sendRegisterOtp = async (req: Request, res: Response): Promise<void
                     email: email,
                     subject: 'Verify Your Email - RoomNMeal',
                     message: `Your verification OTP is: ${otp}`,
-                    html: `<p>Your verification OTP is: <b>${otp}</b></p>`
+                    html: welcomeTemplate(otp)
                 });
             } catch (emailError) {
                 console.error('Failed to send email:', emailError);
@@ -467,7 +507,7 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
                 email: emailOrPhone,
                 subject: 'Your Login OTP - RoomNMeal',
                 message: `Your OTP for login is: ${otp}. It is valid for 5 minutes.`,
-                html: `<p>Your OTP for login is: <b>${otp}</b>. It is valid for 5 minutes.</p>`
+                html: loginOtpTemplate(otp)
             });
         } catch (emailError) {
             console.error('Failed to send email:', emailError);

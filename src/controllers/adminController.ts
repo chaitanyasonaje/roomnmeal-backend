@@ -5,6 +5,7 @@ import Service from '../models/Service';
 import User from '../models/User';
 import Booking from '../models/Booking';
 import Complaint from '../models/Complaint';
+import Payment from '../models/Payment';
 import { AuthRequest } from '../middleware/auth';
 
 export const getListings = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -343,6 +344,45 @@ export const deleteListing = async (req: AuthRequest, res: Response): Promise<vo
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to delete listing',
+        });
+    }
+};
+
+export const getAllPayments = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const payments = await Payment.find()
+            .populate('userId', 'name email phone')
+            .populate('bookingId')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: payments,
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch payments',
+        });
+    }
+};
+
+export const getAllBookings = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const bookings = await Booking.find()
+            .populate('userId', 'name email phone')
+            .populate('roomId', 'title location price')
+            .populate('messPlanId', 'name price')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: bookings,
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch bookings',
         });
     }
 };

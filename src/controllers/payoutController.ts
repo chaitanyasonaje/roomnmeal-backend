@@ -31,6 +31,8 @@ export const requestPayout = async (req: AuthRequest, res: Response): Promise<vo
         });
 
         const totalEarnings = bookings.reduce((sum, b) => sum + b.totalAmount, 0);
+        const platformFee = totalEarnings * 0.05; // 5% Deduction
+        const netEarnings = totalEarnings - platformFee;
 
         // Calculate already processed/pending payouts
         const processedPayouts = await Payout.find({
@@ -40,7 +42,7 @@ export const requestPayout = async (req: AuthRequest, res: Response): Promise<vo
 
         const totalWithdrawn = processedPayouts.reduce((sum, p) => sum + p.amount, 0);
 
-        const availableBalance = totalEarnings - totalWithdrawn;
+        const availableBalance = netEarnings - totalWithdrawn;
 
         if (amount > availableBalance) {
             res.status(400).json({
@@ -100,7 +102,7 @@ export const getMyPayouts = async (req: AuthRequest, res: Response): Promise<voi
 export const getAllPayoutRequests = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const payouts = await Payout.find()
-            .populate('ownerId', 'name email phone bankDetails')
+            .populate('ownerId', 'name email phone +bankDetails')
             .sort({ createdAt: -1 });
 
         res.status(200).json({

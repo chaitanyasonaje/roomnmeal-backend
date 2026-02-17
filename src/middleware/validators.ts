@@ -44,6 +44,11 @@ export const sendOtpRules = [
     body('emailOrPhone').trim().notEmpty().withMessage('Email or phone is required'),
 ];
 
+export const sendRegisterOtpRules = [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('phone').matches(/^[0-9]{10}$/).withMessage('Valid 10-digit phone is required'),
+];
+
 export const verifyOtpRules = [
     body('emailOrPhone').trim().notEmpty().withMessage('Email or phone is required'),
     body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),

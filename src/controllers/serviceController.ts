@@ -12,7 +12,7 @@ export const getAllServices = async (req: Request, res: Response): Promise<void>
             filter['location.city'] = { $regex: city, $options: 'i' };
         }
 
-        const services = await Service.find(filter);
+        const services = await Service.find(filter).populate('ownerId', 'name email phone');
         res.status(200).json({
             success: true,
             count: services.length,
@@ -247,6 +247,29 @@ export const seedServices = async (req: Request, res: Response): Promise<void> =
         res.status(500).json({
             success: false,
             message: error.message,
+        });
+    }
+};
+
+export const getOwnerServiceRequests = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const services = await Service.find({ ownerId: req.user?._id });
+        const serviceIds = services.map(s => s._id);
+
+        const requests = await ServiceRequest.find({ serviceId: { $in: serviceIds } })
+            .populate('userId', 'name email phone')
+            .populate('serviceId')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: requests.length,
+            data: requests,
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch owner service requests',
         });
     }
 };
