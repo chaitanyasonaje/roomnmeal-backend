@@ -4,7 +4,7 @@ import User from '../models/User';
 import OTP from '../models/OTP';
 import { AuthRequest } from '../middleware/auth';
 import { sendEmail } from '../services/emailService';
-import { welcomeTemplate, loginOtpTemplate } from '../utils/emailTemplates';
+import { welcomeTemplate, loginOtpTemplate, passwordResetTemplate } from '../utils/emailTemplates';
 
 // ==================== OTP System ====================
 
@@ -387,6 +387,65 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     }
 };
 
+// Send OTP for forgot password flow
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            res.status(400).json({ success: false, message: 'Please provide an email address' });
+            return;
+        }
+
+        // Check if user exists
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            // Return 200 even if user not found to prevent email enumeration attacks
+            res.status(200).json({ success: true, message: 'If that email exists, a reset link will be sent.' });
+            return;
+        }
+
+        // Check rate limit
+        const existingOtp = await OTP.findOne({ identifier: email });
+        if (existingOtp && (Date.now() - existingOtp.createdAt.getTime() < RATELIMIT_WINDOW)) {
+            res.status(429).json({ success: false, message: 'Please wait 1 minute before requesting another OTP' });
+            return;
+        }
+
+        await OTP.deleteMany({ identifier: email });
+
+        const otp = generateOtp();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+        await OTP.create({
+            identifier: email,
+            otp,
+            expiresAt
+        });
+
+        try {
+            await sendEmail({
+                email: email,
+                subject: 'Password Reset - RoomNMeal',
+                message: `Your password reset code is: ${otp}`,
+                html: passwordResetTemplate(otp)
+            });
+        } catch (emailError) {
+            console.error('Failed to send email:', emailError);
+            res.status(500).json({ success: false, message: 'Failed to send reset email' });
+            return;
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset OTP sent to email',
+        });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message || 'Failed to process request' });
+    }
+};
+
 // Send OTP for new registration (no existing user required)
 export const sendRegisterOtp = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -428,14 +487,14 @@ export const sendRegisterOtp = async (req: Request, res: Response): Promise<void
         });
 
         // In production, integrate SMS/Email provider here
-        // console.log(`\n📱 Registration OTP for ${target}: ${otp}\n`); // REMOVED FOR PRODUCTION
+        // console.log(`\n📱 Registration OTP for ${ target }: ${ otp } \n`); // REMOVED FOR PRODUCTION
 
         if (email) {
             try {
                 await sendEmail({
                     email: email,
                     subject: 'Verify Your Email - RoomNMeal',
-                    message: `Your verification OTP is: ${otp}`,
+                    message: `Your verification OTP is: ${otp} `,
                     html: welcomeTemplate(otp)
                 });
             } catch (emailError) {
@@ -500,7 +559,7 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
         });
 
         // In production, send via SMS/Email service
-        // console.log(`\n🔐 OTP for ${emailOrPhone}: ${otp}\n`); // REMOVED FOR PRODUCTION
+        // console.log(`\n🔐 OTP for ${ emailOrPhone }: ${ otp } \n`); // REMOVED FOR PRODUCTION
 
         try {
             await sendEmail({

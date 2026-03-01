@@ -9,6 +9,7 @@ import {
     sendOtp,
     verifyOtpLogin,
     resetPassword,
+    forgotPassword,
     deleteProfile,
     updatePushToken
 } from '../controllers/authController';
@@ -39,6 +40,7 @@ router.post('/push-token', authenticate, updatePushToken);
 router.post('/send-register-otp', sendRegisterOtpRules, validate, sendRegisterOtp);
 router.post('/send-otp', sendOtpRules, validate, sendOtp);
 router.post('/verify-otp-login', verifyOtpRules, validate, verifyOtpLogin);
+router.post('/forgot-password', forgotPassword); // no rules needed just email
 router.post('/reset-password', resetPasswordRules, validate, resetPassword);
 
 export default router;
