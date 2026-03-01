@@ -8,7 +8,7 @@ import { welcomeTemplate, loginOtpTemplate, passwordResetTemplate } from '../uti
 
 // ==================== OTP System ====================
 
-const RATELIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATELIMIT_WINDOW = 30 * 1000; // 30 seconds
 
 const generateOtp = (): string => {
     return crypto.randomInt(100000, 999999).toString();
@@ -409,7 +409,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
         // Check rate limit
         const existingOtp = await OTP.findOne({ identifier: email });
         if (existingOtp && (Date.now() - existingOtp.createdAt.getTime() < RATELIMIT_WINDOW)) {
-            res.status(429).json({ success: false, message: 'Please wait 1 minute before requesting another OTP' });
+            res.status(429).json({ success: false, message: 'Please wait 30 seconds before requesting another OTP' });
             return;
         }
 
@@ -470,7 +470,7 @@ export const sendRegisterOtp = async (req: Request, res: Response): Promise<void
         // Check rate limit by looking for existing OTP created recently
         const existingOtp = await OTP.findOne({ identifier: target });
         if (existingOtp && (Date.now() - existingOtp.createdAt.getTime() < RATELIMIT_WINDOW)) {
-            res.status(429).json({ success: false, message: 'Please wait 1 minute before requesting another OTP' });
+            res.status(429).json({ success: false, message: 'Please wait 30 seconds before requesting another OTP' });
             return;
         }
 
@@ -540,7 +540,7 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
         // Check rate limit
         const existingOtp = await OTP.findOne({ identifier: emailOrPhone });
         if (existingOtp && (Date.now() - existingOtp.createdAt.getTime() < RATELIMIT_WINDOW)) {
-            res.status(429).json({ success: false, message: 'Please wait 1 minute before requesting another OTP' });
+            res.status(429).json({ success: false, message: 'Please wait 30 seconds before requesting another OTP' });
             return;
         }
 

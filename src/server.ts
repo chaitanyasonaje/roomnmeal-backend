@@ -43,6 +43,9 @@ if (isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev_
 // Initialize Express app
 const app: Application = express();
 
+// Trust proxy for Render/Heroku/Cloudflare load balancers
+app.set('trust proxy', 1);
+
 // --- Middleware ---
 
 // Set security headers
@@ -57,7 +60,7 @@ app.use(mongoSanitize());
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: isProduction ? 100 : 1000, // More permissive in dev
+    max: isProduction ? 200 : 1000, // Increased from 100 to 200 for production
     standardHeaders: true,
     legacyHeaders: false,
     message: 'Too many requests from this IP, please try again after 15 minutes',
