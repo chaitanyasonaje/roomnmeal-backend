@@ -44,7 +44,7 @@ if (isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev_
 const app: Application = express();
 
 // Trust proxy for Render/Heroku/Cloudflare load balancers
-app.set('trust proxy', 1);
+app.set('trust proxy', true);
 
 // --- Middleware ---
 
