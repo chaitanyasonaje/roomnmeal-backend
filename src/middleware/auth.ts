@@ -39,10 +39,10 @@ export const authenticate = async (
             }
 
             // In production, require account verification
-            if (process.env.NODE_ENV === 'production' && !req.user.isVerified) {
-                res.status(401).json({ success: false, message: 'Not authorized, account not verified' });
-                return;
-            }
+            // if (process.env.NODE_ENV === 'production' && !req.user.isVerified) {
+            //     res.status(401).json({ success: false, message: 'Not authorized, account not verified' });
+            //     return;
+            // }
 
             return next();
         } catch (error) {
