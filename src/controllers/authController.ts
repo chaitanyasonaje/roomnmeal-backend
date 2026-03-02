@@ -8,7 +8,7 @@ import { welcomeTemplate, loginOtpTemplate, passwordResetTemplate } from '../uti
 
 // ==================== OTP System ====================
 
-const RATELIMIT_WINDOW = 30 * 1000; // 30 seconds
+const RATELIMIT_WINDOW = 1000; // 1 second for testing comfort
 
 const generateOtp = (): string => {
     return crypto.randomInt(100000, 999999).toString();

@@ -30,6 +30,7 @@ export const createPaymentOrder = async (req: AuthRequest, res: Response): Promi
         }
 
         // Create Razorpay order
+        console.log(`[PAYMENT] Creating order for booking: ${bookingId}, amount: ${booking.totalAmount}`);
         const order = await createOrder({
             amount: booking.totalAmount,
             receipt: `booking_${bookingId}`,
@@ -44,6 +45,7 @@ export const createPaymentOrder = async (req: AuthRequest, res: Response): Promi
             currency: 'INR',
             status: 'created',
         });
+        console.log(`[PAYMENT] Payment record created: ${payment._id}, Razorpay Order ID: ${order.id}`);
 
         res.status(201).json({
             success: true,
@@ -56,6 +58,7 @@ export const createPaymentOrder = async (req: AuthRequest, res: Response): Promi
             },
         });
     } catch (error: any) {
+        console.error('[PAYMENT] Error creating order:', error);
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to create payment order',
@@ -66,6 +69,7 @@ export const createPaymentOrder = async (req: AuthRequest, res: Response): Promi
 export const verifyPayment = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+        console.log(`[PAYMENT] Verifying payment for Order: ${razorpayOrderId}, Payment: ${razorpayPaymentId}`);
 
         // Verify signature
         const isValid = verifyPaymentSignature(
@@ -75,6 +79,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response): Promise<vo
         );
 
         if (!isValid) {
+            console.error('[PAYMENT] Invalid signature for order:', razorpayOrderId);
             res.status(400).json({
                 success: false,
                 message: 'Invalid payment signature',
@@ -94,6 +99,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response): Promise<vo
         );
 
         if (!payment) {
+            console.error('[PAYMENT] Payment record not found for Razorpay Order ID:', razorpayOrderId);
             res.status(404).json({
                 success: false,
                 message: 'Payment record not found',
@@ -101,11 +107,19 @@ export const verifyPayment = async (req: AuthRequest, res: Response): Promise<vo
             return;
         }
 
+        console.log(`[PAYMENT] Payment record ${payment._id} updated. Updating booking ${payment.bookingId}...`);
+
         // Update booking status
-        await Booking.findByIdAndUpdate(payment.bookingId, {
+        const updatedBooking = await Booking.findByIdAndUpdate(payment.bookingId, {
             status: 'confirmed',
             paymentId: payment._id,
-        });
+        }, { new: true });
+
+        if (!updatedBooking) {
+            console.error('[PAYMENT] Booking not found during payment update:', payment.bookingId);
+        } else {
+            console.log(`[PAYMENT] Booking ${updatedBooking._id} status updated to CONFIRMED`);
+        }
 
         res.status(200).json({
             success: true,
@@ -113,6 +127,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response): Promise<vo
             data: payment,
         });
     } catch (error: any) {
+        console.error('[PAYMENT] Verification Error:', error);
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to verify payment',
