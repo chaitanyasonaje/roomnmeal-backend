@@ -43,8 +43,8 @@ if (isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev_
 // Initialize Express app
 const app: Application = express();
 
-// Trust proxy for Render/Heroku/Cloudflare load balancers
-app.set('trust proxy', true);
+// Trust proxy only in production (safe hop-count); keep strict locally
+app.set('trust proxy', isProduction ? 1 : false);
 
 // --- Middleware ---
 
